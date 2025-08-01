@@ -1,0 +1,91 @@
+name: Build Debian Package
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Build weekly to catch upstream updates
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        debian_version: [bookworm, trixie, sid]
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build in Debian container
+      run: |
+        docker run --rm -v $PWD:/workspace -w /workspace \
+          debian:${{ matrix.debian_version }} \
+          /bin/bash -c "
+            set -e
+            apt-get update
+            apt-get install -y devscripts build-essential debhelper-compat
+            apt-get install -y git curl wget
+            apt-get install -y libstartup-notification0-dev libxkbcommon-dev libxkbcommon-x11-dev
+            apt-get install -y libcairo2-dev libpango1.0-dev libgdk-pixbuf-2.0-dev
+            apt-get install -y libglib2.0-dev libxcb1-dev libxcb-util0-dev libxcb-icccm4-dev
+            apt-get install -y libxcb-ewmh-dev libxcb-randr0-dev libxcb-xinerama0-dev
+            apt-get install -y libxcb-xkb-dev libxkbcommon-x11-dev libjpeg-dev
+            apt-get install -y check libwayland-dev wayland-protocols libxcb-cursor-dev
+            apt-get install -y meson ninja-build pkg-config
+            
+            # Clone rofi-wayland
+            git clone https://github.com/lbonn/rofi.git rofi-source
+            cd rofi-source
+            
+            # Get version for package
+            VERSION=\$(git describe --tags --always)
+            cd ..
+            
+            # Create source package structure
+            mkdir -p rofi-wayland-\${VERSION}
+            cp -r rofi-source/* rofi-wayland-\${VERSION}/
+            cp -r debian rofi-wayland-\${VERSION}/
+            
+            # Update changelog
+            cd rofi-wayland-\${VERSION}
+            sed -i \"1s/.*/rofi-wayland (\${VERSION}-1) unstable; urgency=medium/\" debian/changelog
+            
+            # Build package
+            dpkg-buildpackage -us -uc -b
+            
+            # Move packages to workspace
+            cd ..
+            mkdir -p /workspace/packages/${{ matrix.debian_version }}
+            mv *.deb /workspace/packages/${{ matrix.debian_version }}/
+            mv *.changes /workspace/packages/${{ matrix.debian_version }}/ || true
+            mv *.buildinfo /workspace/packages/${{ matrix.debian_version }}/ || true
+        "
+    
+    - name: Upload packages as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: rofi-wayland-${{ matrix.debian_version }}
+        path: packages/${{ matrix.debian_version }}/*.deb
+        
+    - name: Create Release
+      if: github.ref == 'refs/heads/main' && matrix.debian_version == 'trixie'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: latest-${{ github.run_number }}
+        name: Rofi-Wayland Build ${{ github.run_number }}
+        body: |
+          Automated build of rofi-wayland for Debian
+          - Built from latest upstream
+          - Debian packages for multiple versions
+        files: packages/**/*.deb
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
