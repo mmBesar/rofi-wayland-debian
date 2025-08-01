@@ -1,0 +1,43 @@
+Source: rofi-wayland
+Section: x11
+Priority: optional
+Maintainer: Your Name <your.email@example.com>
+Build-Depends: debhelper-compat (= 13),
+               meson,
+               ninja-build,
+               pkg-config,
+               libstartup-notification0-dev,
+               libxkbcommon-dev,
+               libxkbcommon-x11-dev,
+               libcairo2-dev,
+               libpango1.0-dev,
+               libgdk-pixbuf-2.0-dev,
+               libglib2.0-dev,
+               libxcb1-dev,
+               libxcb-util0-dev,
+               libxcb-icccm4-dev,
+               libxcb-ewmh-dev,
+               libxcb-randr0-dev,
+               libxcb-xinerama0-dev,
+               libxcb-xkb-dev,
+               libjpeg-dev,
+               check,
+               libwayland-dev,
+               wayland-protocols,
+               libxcb-cursor-dev
+Standards-Version: 4.6.0
+Homepage: https://github.com/lbonn/rofi
+
+Package: rofi-wayland
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: rofi
+Replaces: rofi
+Provides: rofi
+Description: Window switcher, run dialog and dmenu replacement (Wayland)
+ Rofi is a dmenu replacement with many more features. It is an X11/Wayland
+ popup window switcher roughly based on superswitcher, requiring only xlib
+ and pango. Rofi can act as an application launcher, window switcher, ssh
+ launcher and dmenu replacement.
+ .
+ This version includes Wayland support.
