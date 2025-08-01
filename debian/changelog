@@ -1,8 +1,9 @@
 rofi-wayland (1.7.9-1) unstable; urgency=medium
 
-  * Initial Debian package build with official Wayland support
-  * Built from davatorium/rofi with merged Wayland support
-  * Includes both X11/XCB and Wayland backends
-  * Automatic backend detection
+  * Initial package for rofi with official Wayland support
+  * Built from official davatorium/rofi repository
+  * Includes both X11 and Wayland backends
+  * Automatic backend detection based on session
+  * Optimized for Debian 13 (Trixie)
 
  -- Your Name <mbesar@proton.me>  Fri, 01 Aug 2025 12:00:00 +0000
