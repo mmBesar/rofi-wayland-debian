@@ -1,10 +1,10 @@
 name: Build Rofi Debian Package
 
 on:
-  # push:
-  #   branches: [ main ]
-  # pull_request:
-  #   branches: [ main ]
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   schedule:
     # Build weekly to catch upstream updates
     - cron: '0 2 * * 0'
@@ -13,18 +13,15 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        debian_version: [bookworm, trixie, sid]
     
     steps:
     - name: Checkout
       uses: actions/checkout@v4
       
-    - name: Build in Debian container
+    - name: Build in Debian Trixie container
       run: |
         docker run --rm -v $PWD:/workspace -w /workspace \
-          debian:${{ matrix.debian_version }} \
+          debian:trixie \
           /bin/bash -c "
             set -e
             
@@ -32,15 +29,15 @@ jobs:
             apt-get update
             
             # Install build tools
-            apt-get install -y devscripts build-essential debhelper-compat git curl wget
+            apt-get install -y devscripts build-essential git curl wget
             
-            # Install ALL required build dependencies from official docs
+            # Install build dependencies exactly as per official rofi docs
             apt-get install -y meson ninja-build pkg-config
             apt-get install -y flex bison check
             
-            # Core dependencies (pangocairo is included in libpango1.0-dev)
+            # Core dependencies
             apt-get install -y libpango1.0-dev
-            apt-get install -y libcairo2-dev
+            apt-get install -y libcairo2-dev 
             apt-get install -y libglib2.0-dev libgdk-pixbuf-2.0-dev
             
             # X11 dependencies  
@@ -71,6 +68,9 @@ jobs:
             
             cd rofi-wayland-\${VERSION}
             
+            # Remove debian/compat to fix debhelper conflict
+            rm -f debian/compat
+            
             # Make sure debian/rules is executable
             chmod +x debian/rules
             
@@ -89,33 +89,34 @@ jobs:
             
             # Move built packages
             cd ..
-            mkdir -p /workspace/packages/${{ matrix.debian_version }}
-            mv *.deb /workspace/packages/${{ matrix.debian_version }}/ 2>/dev/null || true
-            mv *.changes /workspace/packages/${{ matrix.debian_version }}/ 2>/dev/null || true
-            mv *.buildinfo /workspace/packages/${{ matrix.debian_version }}/ 2>/dev/null || true
+            mkdir -p /workspace/packages
+            mv *.deb /workspace/packages/ 2>/dev/null || true
+            mv *.changes /workspace/packages/ 2>/dev/null || true
+            mv *.buildinfo /workspace/packages/ 2>/dev/null || true
             
             # List what was built
             echo \"Built packages:\"
-            ls -la /workspace/packages/${{ matrix.debian_version }}/
+            ls -la /workspace/packages/
         "
     
     - name: Upload packages as artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: rofi-wayland-${{ matrix.debian_version }}
-        path: packages/${{ matrix.debian_version }}/*.deb
+        name: rofi-wayland-debian13
+        path: packages/*.deb
         retention-days: 30
         
     - name: Create Release
-      if: github.ref == 'refs/heads/main' && matrix.debian_version == 'trixie'
+      if: github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: build-${{ github.run_number }}
-        name: Rofi with Wayland Support - Build ${{ github.run_number }}
+        name: Rofi with Wayland Support - Build ${{ github.run_number }} 
         body: |
-          ## Rofi with Official Wayland Support
+          ## Rofi with Official Wayland Support - Debian 13 (Trixie)
           
           Built from official davatorium/rofi repository which now includes merged Wayland support.
+          Optimized for Debian 13 (Trixie).
           
           ### Features:
           - ✅ Official Wayland support (layer shell protocol)
@@ -123,7 +124,7 @@ jobs:
           - ✅ Automatic backend detection
           - ✅ All standard rofi features
           
-          ### Installation:
+          ### Installation on Debian 13:
           ```bash
           wget https://github.com/${{ github.repository }}/releases/download/build-${{ github.run_number }}/rofi-wayland_*_amd64.deb
           sudo dpkg -i rofi-wayland_*.deb
@@ -134,7 +135,7 @@ jobs:
           Rofi automatically detects if you're running Wayland or X11. Force X11 with `-x11` flag.
           
           Built from commit: ${{ github.sha }}
-        files: packages/**/*.deb
+        files: packages/*.deb
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
