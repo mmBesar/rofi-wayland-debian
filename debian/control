@@ -50,4 +50,4 @@ Description: Window switcher, application launcher and dmenu replacement
   * Can act as dmenu replacement
  .
  This version includes both X11 and Wayland support with automatic backend
- detection based on the current session.
+ detection based on the current session. Built specifically for Debian 13.
