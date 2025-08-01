@@ -1,4 +1,4 @@
-name: Build Rofi Debian Package
+name: Rofi Debian 12, 13 and sid
 
 on:
   push:
