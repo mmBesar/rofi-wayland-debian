@@ -1,5 +1,9 @@
 name: Build Rofi Debian Package
 
+permissions:
+  contents: write    # Allows creating releases and tags
+  packages: write    # Allows publishing packages (if needed later)
+
 on:
   push:
     branches: [ main ]
