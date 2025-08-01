@@ -1,10 +1,10 @@
 name: Build Rofi Debian Package
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  # push:
+  #   branches: [ main ]
+  # pull_request:
+  #   branches: [ main ]
   schedule:
     # Build weekly to catch upstream updates
     - cron: '0 2 * * 0'
