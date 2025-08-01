@@ -89,8 +89,8 @@ jobs:
             # Make sure debian/rules is executable
             chmod +x debian/rules
             
-            # Update changelog with proper version
-            sed -i \"1s/.*/rofi-wayland (\${VERSION}-1) unstable; urgency=medium/\" debian/changelog
+            # Update changelog with proper version and debian version
+            sed -i \"1s/.*/rofi-wayland (\${VERSION}-1~${{ matrix.debian_version }}) unstable; urgency=medium/\" debian/changelog
             
             # Test meson setup first
             echo \"Testing meson configuration...\"
@@ -158,9 +158,9 @@ jobs:
           ### Installation:
           
           Download the appropriate `.deb` file for your Debian version:
-          - **Debian 12 (Bookworm)**: Look for files with "bookworm" in the name
-          - **Debian 13 (Trixie)**: Look for files with "trixie" in the name  
-          - **Debian Sid (Unstable)**: Look for files with "sid" in the name
+          - **Debian 12 (Bookworm)**: `rofi-wayland_*~bookworm*_amd64.deb`
+          - **Debian 13 (Trixie)**: `rofi-wayland_*~trixie*_amd64.deb`  
+          - **Debian Sid (Unstable)**: `rofi-wayland_*~sid*_amd64.deb`
           
           **Then install:**
           ```bash
