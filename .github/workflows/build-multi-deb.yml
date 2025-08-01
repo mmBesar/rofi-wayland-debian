@@ -112,9 +112,25 @@ jobs:
         name: rofi-wayland-${{ matrix.debian_version }}
         path: packages/${{ matrix.debian_version }}/*.deb
         retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        merge-multiple: true
+        path: release-packages
+        
+    - name: List downloaded packages
+      run: |
+        echo "Downloaded packages:"
+        find release-packages -name "*.deb" -type f
         
     - name: Create Release
-      if: github.ref == 'refs/heads/main' && matrix.debian_version == 'trixie'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: build-${{ github.run_number }}
@@ -133,29 +149,22 @@ jobs:
           
           ### Installation:
           
-          **Debian 12 (Bookworm):**
-          ```bash
-          wget https://github.com/${{ github.repository }}/releases/download/build-${{ github.run_number }}/rofi-wayland_*_amd64.deb
-          # Download from rofi-wayland-bookworm artifact
-          ```
+          Download the appropriate `.deb` file for your Debian version:
+          - **Debian 12 (Bookworm)**: `rofi-wayland_*bookworm*.deb`
+          - **Debian 13 (Trixie)**: `rofi-wayland_*trixie*.deb`  
+          - **Debian Sid (Unstable)**: `rofi-wayland_*sid*.deb`
           
-          **Debian 13 (Trixie):**
+          **Then install:**
           ```bash
-          wget https://github.com/${{ github.repository }}/releases/download/build-${{ github.run_number }}/rofi-wayland_*_amd64.deb
           sudo dpkg -i rofi-wayland_*.deb
-          sudo apt-get install -f
-          ```
-          
-          **Debian Sid (Unstable):**
-          ```bash
-          # Download from rofi-wayland-sid artifact
+          sudo apt-get install -f  # Fix any dependencies
           ```
           
           ### Usage:
           Rofi automatically detects if you're running Wayland or X11. Force X11 with `-x11` flag.
           
           Built from commit: ${{ github.sha }}
-        files: packages/**/*.deb
+        files: release-packages/*.deb
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
