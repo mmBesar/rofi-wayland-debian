@@ -17,15 +17,23 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        debian_version: 
+          - bookworm
+          - trixie  
+          - sid
+    name: build-${{ matrix.debian_version }}
     
     steps:
     - name: Checkout
       uses: actions/checkout@v4
       
-    - name: Build in Debian Trixie container
+    - name: Build in Debian ${{ matrix.debian_version }} container
       run: |
         docker run --rm -v $PWD:/workspace -w /workspace \
-          debian:trixie \
+          debian:${{ matrix.debian_version }} \
           /bin/bash -c "
             set -e
             
@@ -150,9 +158,9 @@ jobs:
           ### Installation:
           
           Download the appropriate `.deb` file for your Debian version:
-          - **Debian 12 (Bookworm)**: `rofi-wayland_*bookworm*.deb`
-          - **Debian 13 (Trixie)**: `rofi-wayland_*trixie*.deb`  
-          - **Debian Sid (Unstable)**: `rofi-wayland_*sid*.deb`
+          - **Debian 12 (Bookworm)**: Look for files with "bookworm" in the name
+          - **Debian 13 (Trixie)**: Look for files with "trixie" in the name  
+          - **Debian Sid (Unstable)**: Look for files with "sid" in the name
           
           **Then install:**
           ```bash
