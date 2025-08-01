@@ -164,6 +164,11 @@ jobs:
           
           **Then install:**
           ```bash
+          sudo apt install ./rofi-wayland_*.deb
+          ```
+
+          **Or use dpkg:**
+          ```bash
           sudo dpkg -i rofi-wayland_*.deb
           sudo apt-get install -f  # Fix any dependencies
           ```
