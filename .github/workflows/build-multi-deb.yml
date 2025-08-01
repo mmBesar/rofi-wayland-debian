@@ -1,0 +1,161 @@
+name: Build Rofi Debian Package
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Build weekly to catch upstream updates
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Build in Debian Trixie container
+      run: |
+        docker run --rm -v $PWD:/workspace -w /workspace \
+          debian:trixie \
+          /bin/bash -c "
+            set -e
+            
+            # Update package lists
+            apt-get update
+            
+            # Install build tools
+            apt-get install -y devscripts build-essential git curl wget
+            
+            # Install build dependencies exactly as per official rofi docs
+            apt-get install -y meson ninja-build pkg-config
+            apt-get install -y flex bison check
+            
+            # Core dependencies
+            apt-get install -y libpango1.0-dev
+            apt-get install -y libcairo2-dev 
+            apt-get install -y libglib2.0-dev libgdk-pixbuf-2.0-dev
+            
+            # X11 dependencies  
+            apt-get install -y libstartup-notification0-dev
+            apt-get install -y libxkbcommon-dev libxkbcommon-x11-dev
+            apt-get install -y libxcb1-dev libxcb-xkb-dev libxcb-randr0-dev libxcb-xinerama0-dev
+            apt-get install -y libxcb-util0-dev libxcb-ewmh-dev libxcb-icccm4-dev libxcb-cursor-dev
+            
+            # Wayland dependencies
+            apt-get install -y libwayland-dev wayland-protocols
+            
+            # Optional but recommended
+            apt-get install -y libxcb-imdkit-dev || echo 'xcb-imdkit not available, skipping'
+            
+            # Clone official rofi (with Wayland support merged!)
+            git clone --recursive https://github.com/davatorium/rofi.git rofi-source
+            cd rofi-source
+            
+            # Get version
+            VERSION=\$(git describe --tags --always | sed 's/^v//')
+            echo \"Building version: \$VERSION\"
+            cd ..
+            
+            # Create proper source structure
+            mkdir -p rofi-wayland-\${VERSION}
+            cp -r rofi-source/* rofi-wayland-\${VERSION}/
+            cp -r debian rofi-wayland-\${VERSION}/
+            
+            cd rofi-wayland-\${VERSION}
+            
+            # Remove debian/compat to fix debhelper conflict
+            rm -f debian/compat
+            
+            # Remove debian/install to let dh_auto_install handle everything
+            rm -f debian/install
+            
+            # Make sure debian/rules is executable
+            chmod +x debian/rules
+            
+            # Update changelog with proper version
+            sed -i \"1s/.*/rofi-wayland (\${VERSION}-1) unstable; urgency=medium/\" debian/changelog
+            
+            # Test meson setup first
+            echo \"Testing meson configuration...\"
+            meson setup build_test
+            meson configure build_test
+            rm -rf build_test
+            
+            # Build the package
+            echo \"Building Debian package...\"
+            dpkg-buildpackage -us -uc -b
+            
+            # Move built packages
+            cd ..
+            mkdir -p /workspace/packages/${{ matrix.debian_version }}
+            mv *.deb /workspace/packages/${{ matrix.debian_version }}/ 2>/dev/null || true
+            mv *.changes /workspace/packages/${{ matrix.debian_version }}/ 2>/dev/null || true
+            mv *.buildinfo /workspace/packages/${{ matrix.debian_version }}/ 2>/dev/null || true
+            
+            # List what was built
+            echo \"Built packages:\"
+            ls -la /workspace/packages/${{ matrix.debian_version }}/
+        "
+    
+    - name: Upload packages as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: rofi-wayland-${{ matrix.debian_version }}
+        path: packages/${{ matrix.debian_version }}/*.deb
+        retention-days: 30
+        
+    - name: Create Release
+      if: github.ref == 'refs/heads/main' && matrix.debian_version == 'trixie'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: build-${{ github.run_number }}
+        name: Rofi with Wayland Support - Build ${{ github.run_number }} 
+        body: |
+          ## Rofi with Official Wayland Support - Multi-Debian Support
+          
+          Built from official davatorium/rofi repository which now includes merged Wayland support.
+          Compatible with Debian 12 (Bookworm), 13 (Trixie), and Sid.
+          
+          ### Features:
+          - ✅ Official Wayland support (layer shell protocol)
+          - ✅ X11/XCB support (dual backend)
+          - ✅ Automatic backend detection
+          - ✅ All standard rofi features
+          
+          ### Installation:
+          
+          **Debian 12 (Bookworm):**
+          ```bash
+          wget https://github.com/${{ github.repository }}/releases/download/build-${{ github.run_number }}/rofi-wayland_*_amd64.deb
+          # Download from rofi-wayland-bookworm artifact
+          ```
+          
+          **Debian 13 (Trixie):**
+          ```bash
+          wget https://github.com/${{ github.repository }}/releases/download/build-${{ github.run_number }}/rofi-wayland_*_amd64.deb
+          sudo dpkg -i rofi-wayland_*.deb
+          sudo apt-get install -f
+          ```
+          
+          **Debian Sid (Unstable):**
+          ```bash
+          # Download from rofi-wayland-sid artifact
+          ```
+          
+          ### Usage:
+          Rofi automatically detects if you're running Wayland or X11. Force X11 with `-x11` flag.
+          
+          Built from commit: ${{ github.sha }}
+        files: packages/**/*.deb
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
