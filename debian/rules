@@ -4,7 +4,10 @@
 	dh $@ --buildsystem=meson
 
 override_dh_auto_configure:
-	dh_auto_configure -- -Dwayland=enabled
+	dh_auto_configure -- \
+		-Dwayland=enabled \
+		-Dxcb=enabled
 
 override_dh_auto_test:
-	# Skip tests that might fail in container
+	# Run tests if available, but don't fail build if tests fail
+	dh_auto_test || echo "Tests failed, but continuing build"
