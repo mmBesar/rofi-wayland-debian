@@ -40,7 +40,7 @@ jobs:
             
             # Core dependencies (pangocairo is included in libpango1.0-dev)
             apt-get install -y libpango1.0-dev
-            apt-get install -y libcairo2-dev libcairo-xcb-dev
+            apt-get install -y libcairo2-dev
             apt-get install -y libglib2.0-dev libgdk-pixbuf-2.0-dev
             
             # X11 dependencies  
