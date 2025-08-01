@@ -38,8 +38,8 @@ jobs:
             apt-get install -y meson ninja-build pkg-config
             apt-get install -y flex bison check
             
-            # Core dependencies (glib-compile-resources is included in libglib2.0-dev)
-            apt-get install -y libpango1.0-dev libpangocairo-1.0-dev
+            # Core dependencies (pangocairo is included in libpango1.0-dev)
+            apt-get install -y libpango1.0-dev
             apt-get install -y libcairo2-dev libcairo-xcb-dev
             apt-get install -y libglib2.0-dev libgdk-pixbuf-2.0-dev
             
