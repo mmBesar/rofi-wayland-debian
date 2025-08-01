@@ -1,4 +1,4 @@
-name: Build Rofi Debian Package
+name: Rofi Debian 13
 
 permissions:
   contents: write    # Allows creating releases and tags
