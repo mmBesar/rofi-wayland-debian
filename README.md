@@ -79,7 +79,7 @@ curl -s https://api.github.com/repos/mmBesar/rofi-wayland-debian/releases/latest
 
 ### Step 2 — Install
 
-Always install rofi first, then rofi-emoji:
+Always install rofi first, then rofi-emoji, then the color emoji font:
 
 ```bash
 # Install rofi first
@@ -87,6 +87,9 @@ sudo apt install ./rofi-wayland_*.deb
 
 # Then install the emoji plugin
 sudo apt install ./rofi-emoji_*.deb
+
+# Install color emoji font (required for colored emoji in the picker)
+sudo apt install fonts-noto-color-emoji
 ```
 
 > `rofi-wayland` conflicts with and replaces the official `rofi` package. `apt` handles this automatically.
@@ -115,6 +118,8 @@ rofi -show emoji
 Type to search by name (e.g. "face", "heart", "cat"), then:
 - **Enter** — insert emoji at cursor
 - **Alt+Enter** — open copy/insert options menu
+
+> **Color emoji:** Install `fonts-noto-color-emoji` for full color rendering in the picker. Without it, emoji will appear as monochrome outlines.
 
 #### Optional dependencies for emoji insertion
 
