@@ -107,8 +107,7 @@ jobs:
           override_dh_auto_configure:
           	dh_auto_configure -- \
           		--prefix=/usr \
-          		--buildtype=release \
-          		-Dplugin-directory=/usr/lib/rofi
+          		--buildtype=release
           EOF
           chmod +x debian/rules
 
@@ -228,10 +227,10 @@ jobs:
           STAGING=rofi-emoji/build/staging
 
           mkdir -p deb-root/DEBIAN
-          mkdir -p deb-root/usr/lib/rofi
+          mkdir -p deb-root/usr/lib/x86_64-linux-gnu/rofi
           mkdir -p deb-root/usr/share/rofi-emoji
 
-          find ${STAGING}/usr/lib -name "*.so" -exec cp {} deb-root/usr/lib/rofi/ \;
+          find ${STAGING}/usr/lib -name "*.so" -exec cp {} deb-root/usr/lib/x86_64-linux-gnu/rofi/ \;
           find ${STAGING}/usr/share -name "*.txt" -exec cp {} deb-root/usr/share/rofi-emoji/ \;
           find ${STAGING}/usr/share -name "clipboard-adapter.sh" \
             -exec install -Dm755 {} deb-root/usr/share/rofi-emoji/clipboard-adapter.sh \; || true
