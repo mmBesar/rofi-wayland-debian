@@ -38,7 +38,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Cache apt packages
         uses: actions/cache@v4
@@ -108,7 +108,8 @@ jobs:
       - name: Collect packages
         run: |
           mkdir -p packages
-          mv *.deb packages/ 2>/dev/null || true
+          # Move .deb files but exclude debug symbol packages
+          find . -maxdepth 1 -name "*.deb" ! -name "*dbgsym*" -exec mv {} packages/ \;
           mv *.changes packages/ 2>/dev/null || true
           mv *.buildinfo packages/ 2>/dev/null || true
           echo "Built packages:"
@@ -124,14 +125,14 @@ jobs:
           ldconfig
 
       - name: Upload rofi packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: rofi-wayland-${{ matrix.debian_version }}
           path: packages/*.deb
           retention-days: 30
 
       - name: Upload rofi-dev headers (for rofi-emoji build)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: rofi-headers-${{ matrix.debian_version }}
           path: /usr/include/rofi/
@@ -171,13 +172,13 @@ jobs:
             xdotool
 
       - name: Download rofi .deb artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: rofi-wayland-${{ matrix.debian_version }}
           path: rofi-packages
 
       - name: Download rofi headers artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: rofi-headers-${{ matrix.debian_version }}
           path: /usr/include/rofi
@@ -248,7 +249,7 @@ jobs:
           ls -la packages/
 
       - name: Upload rofi-emoji packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: rofi-emoji-${{ matrix.debian_version }}
           path: packages/*.deb
@@ -264,10 +265,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           merge-multiple: true
           path: release-packages
@@ -279,7 +280,7 @@ jobs:
           find release-packages -name "*.deb" -type f | sort
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: Rofi with Wayland Support - Build ${{ github.run_number }}
