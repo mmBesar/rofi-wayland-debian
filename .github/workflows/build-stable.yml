@@ -94,9 +94,23 @@ jobs:
           cd rofi-wayland-${VERSION}
           echo 13 > debian/compat
           rm -f debian/install
-          chmod +x debian/rules
           sed -i 's/debhelper-compat (= 13)/debhelper (>= 13)/' debian/control
           sed -i "1s/.*/rofi-wayland (${VERSION}-1~${{ matrix.debian_version }}) unstable; urgency=medium/" debian/changelog
+          # Rewrite debian/rules with explicit plugin directory
+          # so rofi finds .so plugins without needing -plugin-path flag
+          cat > debian/rules << 'EOF'
+          #!/usr/bin/make -f
+
+          %:
+          	dh $@ --buildsystem=meson
+
+          override_dh_auto_configure:
+          	dh_auto_configure -- \
+          		--prefix=/usr \
+          		--buildtype=release \
+          		-Dplugin-directory=/usr/lib/rofi
+          EOF
+          chmod +x debian/rules
 
       - name: Build Debian package
         run: |
