@@ -1,13 +1,13 @@
 name: Rofi Debian 12, 13 and sid
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  schedule:
-    # Build weekly to catch upstream updates
-    - cron: '0 2 * * 0'
+  # push:
+  #   branches: [ main ]
+  # pull_request:
+  #   branches: [ main ]
+  # schedule:
+  #   # Build weekly to catch upstream updates
+  #   - cron: '0 2 * * 0'
   workflow_dispatch:
 
 permissions:
