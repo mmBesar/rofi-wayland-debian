@@ -13,6 +13,7 @@ permissions:
   packages: write
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   GIT_AUTHOR_NAME: ${{ github.repository_owner }}
   GIT_AUTHOR_EMAIL: ${{ github.repository_owner }}@users.noreply.github.com
   GIT_COMMITTER_NAME: ${{ github.repository_owner }}
