@@ -169,13 +169,13 @@ jobs:
             xdotool
 
       - name: Download rofi .deb artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: rofi-wayland-${{ matrix.debian_version }}
           path: rofi-packages
 
       - name: Download rofi headers artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: rofi-headers-${{ matrix.debian_version }}
           path: /usr/include/rofi
@@ -258,7 +258,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           merge-multiple: true
           path: release-packages
