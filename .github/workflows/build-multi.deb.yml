@@ -14,6 +14,13 @@ permissions:
   contents: write
   packages: write
 
+# Use repo owner identity for all git operations
+env:
+  GIT_AUTHOR_NAME: ${{ github.repository_owner }}
+  GIT_AUTHOR_EMAIL: ${{ github.repository_owner }}@users.noreply.github.com
+  GIT_COMMITTER_NAME: ${{ github.repository_owner }}
+  GIT_COMMITTER_EMAIL: ${{ github.repository_owner }}@users.noreply.github.com
+
 # ─────────────────────────────────────────────
 # JOB 1 — Build rofi for each Debian version
 # ─────────────────────────────────────────────
@@ -33,6 +40,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set Git identity to repo owner
+        run: |
+          git config --global user.name "${{ github.repository_owner }}"
+          git config --global user.email "${{ github.repository_owner }}@users.noreply.github.com"
+
       - name: Cache apt packages
         uses: actions/cache@v4
         with:
@@ -45,6 +57,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             devscripts build-essential git curl wget \
+            debhelper \
             meson ninja-build pkg-config \
             flex bison check \
             libpango1.0-dev \
@@ -64,7 +77,10 @@ jobs:
         id: version
         run: |
           cd rofi-source
-          VERSION=$(git describe --tags --always | sed 's/^v//')
+          RAW=$(git describe --tags --always | sed 's/^v//')
+          # Debian version cannot contain '-' except as epoch/revision separator
+          # Convert e.g. 2.0.0-52-g3d27ba47 → 2.0.0+52+g3d27ba47
+          VERSION=$(echo "$RAW" | sed 's/-/+/g')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Prepare build directory
@@ -80,6 +96,8 @@ jobs:
           cd rofi-wayland-${VERSION}
           rm -f debian/compat debian/install
           chmod +x debian/rules
+          # Remove debhelper-compat from Build-Depends (not a real installable package)
+          sed -i 's/debhelper-compat (= 13)/debhelper (>= 13)/' debian/control
           sed -i "1s/.*/rofi-wayland (${VERSION}-1~${{ matrix.debian_version }}) unstable; urgency=medium/" debian/changelog
 
       - name: Build Debian package
@@ -246,6 +264,14 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Git identity to repo owner
+        run: |
+          git config --global user.name "${{ github.repository_owner }}"
+          git config --global user.email "${{ github.repository_owner }}@users.noreply.github.com"
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -301,7 +327,7 @@ jobs:
             - `rofi-wayland` conflicts with and replaces the official `rofi` package
             - `rofi-emoji` requires `xdotool` (X11) or `wl-clipboard` (Wayland) for clipboard support
 
-            Built from commit: ${{ github.sha }}
+            Built from commit: ${{ github.sha }} by @${{ github.actor }}
           files: release-packages/*.deb
           prerelease: false
         env:
