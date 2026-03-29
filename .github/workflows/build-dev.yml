@@ -11,6 +11,7 @@ permissions:
   packages: write
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   GIT_AUTHOR_NAME: ${{ github.repository_owner }}
   GIT_AUTHOR_EMAIL: ${{ github.repository_owner }}@users.noreply.github.com
   GIT_COMMITTER_NAME: ${{ github.repository_owner }}
@@ -73,8 +74,10 @@ jobs:
         run: |
           cd rofi-source
           RAW=$(git describe --tags --always | sed 's/^v//')
-          # Sanitize for Debian: replace - with + (except keep base version intact)
           VERSION=$(echo "$RAW" | sed 's/-/+/g')
+          # Always append build date so dev filenames are unique from stable
+          BUILD_DATE=$(date +%Y%m%d)
+          VERSION="${VERSION}+${BUILD_DATE}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version_raw=$RAW" >> $GITHUB_OUTPUT
           echo "Building dev version: $VERSION"
@@ -192,6 +195,9 @@ jobs:
           cd rofi-emoji
           RAW=$(git describe --tags --always | sed 's/^v//')
           VERSION=$(echo "$RAW" | sed 's/-/+/g')
+          # Always append build date so dev filenames are unique from stable
+          BUILD_DATE=$(date +%Y%m%d)
+          VERSION="${VERSION}+${BUILD_DATE}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Building dev rofi-emoji version: $VERSION"
 
