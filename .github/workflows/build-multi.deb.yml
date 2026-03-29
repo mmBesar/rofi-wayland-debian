@@ -40,11 +40,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set Git identity to repo owner
-        run: |
-          git config --global user.name "${{ github.repository_owner }}"
-          git config --global user.email "${{ github.repository_owner }}@users.noreply.github.com"
-
       - name: Cache apt packages
         uses: actions/cache@v4
         with:
@@ -69,6 +64,8 @@ jobs:
             libxcb-util0-dev libxcb-ewmh-dev libxcb-icccm4-dev libxcb-cursor-dev \
             libwayland-dev wayland-protocols \
             libxcb-imdkit-dev || true
+          git config --global user.name "${{ github.repository_owner }}"
+          git config --global user.email "${{ github.repository_owner }}@users.noreply.github.com"
 
       - name: Clone rofi source
         run: git clone --recursive https://github.com/davatorium/rofi.git rofi-source
@@ -266,11 +263,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set Git identity to repo owner
-        run: |
-          git config --global user.name "${{ github.repository_owner }}"
-          git config --global user.email "${{ github.repository_owner }}@users.noreply.github.com"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
