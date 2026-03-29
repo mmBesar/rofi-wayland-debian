@@ -1,0 +1,327 @@
+name: Rofi Dev — Debian Trixie and Sid
+
+on:
+  schedule:
+    # Build weekly to catch upstream dev commits
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  GIT_AUTHOR_NAME: ${{ github.repository_owner }}
+  GIT_AUTHOR_EMAIL: ${{ github.repository_owner }}@users.noreply.github.com
+  GIT_COMMITTER_NAME: ${{ github.repository_owner }}
+  GIT_COMMITTER_EMAIL: ${{ github.repository_owner }}@users.noreply.github.com
+
+# ─────────────────────────────────────────────
+# JOB 1 — Build rofi (latest main commit)
+# ─────────────────────────────────────────────
+jobs:
+  build-rofi:
+    runs-on: ubuntu-latest
+    container: debian:${{ matrix.debian_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        debian_version:
+          - trixie
+          - sid
+    name: rofi-${{ matrix.debian_version }}
+    outputs:
+      rofi_version: ${{ steps.version.outputs.version }}
+      rofi_version_raw: ${{ steps.version.outputs.version_raw }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Cache apt packages
+        uses: actions/cache@v5
+        with:
+          path: /var/cache/apt/archives
+          key: apt-rofi-dev-${{ matrix.debian_version }}-${{ hashFiles('debian/control') }}
+          restore-keys: apt-rofi-dev-${{ matrix.debian_version }}-
+
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            devscripts build-essential git ca-certificates curl wget \
+            debhelper \
+            meson ninja-build pkg-config \
+            flex bison check \
+            libpango1.0-dev \
+            libcairo2-dev \
+            libglib2.0-dev libgdk-pixbuf-2.0-dev \
+            libstartup-notification0-dev \
+            libxkbcommon-dev libxkbcommon-x11-dev \
+            libxcb1-dev libxcb-xkb-dev libxcb-randr0-dev libxcb-xinerama0-dev \
+            libxcb-util0-dev libxcb-ewmh-dev libxcb-icccm4-dev libxcb-cursor-dev \
+            libwayland-dev wayland-protocols \
+            libxcb-imdkit-dev || true
+          git config --global user.name "${{ github.repository_owner }}"
+          git config --global user.email "${{ github.repository_owner }}@users.noreply.github.com"
+
+      - name: Clone rofi source (latest main)
+        run: git clone --recursive https://github.com/davatorium/rofi.git rofi-source
+
+      - name: Get rofi version
+        id: version
+        run: |
+          cd rofi-source
+          RAW=$(git describe --tags --always | sed 's/^v//')
+          # Sanitize for Debian: replace - with + (except keep base version intact)
+          VERSION=$(echo "$RAW" | sed 's/-/+/g')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_raw=$RAW" >> $GITHUB_OUTPUT
+          echo "Building dev version: $VERSION"
+
+      - name: Prepare build directory
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          mkdir -p rofi-wayland-${VERSION}
+          cp -r rofi-source/* rofi-wayland-${VERSION}/
+          cp -r debian rofi-wayland-${VERSION}/
+
+      - name: Prepare debian packaging files
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          cd rofi-wayland-${VERSION}
+          echo 13 > debian/compat
+          rm -f debian/install
+          chmod +x debian/rules
+          sed -i 's/debhelper-compat (= 13)/debhelper (>= 13)/' debian/control
+          sed -i "1s/.*/rofi-wayland (${VERSION}-1~${{ matrix.debian_version }}) unstable; urgency=medium/" debian/changelog
+
+      - name: Build Debian package
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          cd rofi-wayland-${VERSION}
+          dpkg-buildpackage -us -uc -b
+
+      - name: Collect packages
+        run: |
+          mkdir -p packages
+          find . -maxdepth 1 -name "*.deb" ! -name "*dbgsym*" -exec mv {} packages/ \;
+          mv *.changes packages/ 2>/dev/null || true
+          mv *.buildinfo packages/ 2>/dev/null || true
+          echo "Built packages:"
+          ls -la packages/
+
+      - name: Install rofi and expose headers for rofi-emoji
+        run: |
+          apt-get install -y ./packages/rofi-wayland_*.deb || true
+          cd rofi-source
+          meson setup build_headers --prefix=/usr
+          ninja -C build_headers install
+          ldconfig
+
+      - name: Upload rofi packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: rofi-wayland-${{ matrix.debian_version }}
+          path: packages/*.deb
+          retention-days: 7
+
+      - name: Upload rofi headers for rofi-emoji build
+        uses: actions/upload-artifact@v6
+        with:
+          name: rofi-headers-${{ matrix.debian_version }}
+          path: /usr/include/rofi/
+          retention-days: 1
+
+# ─────────────────────────────────────────────
+# JOB 2 — Build rofi-emoji (latest main commit)
+# ─────────────────────────────────────────────
+  build-rofi-emoji:
+    runs-on: ubuntu-latest
+    container: debian:${{ matrix.debian_version }}
+    needs: build-rofi
+    strategy:
+      fail-fast: false
+      matrix:
+        debian_version:
+          - trixie
+          - sid
+    name: rofi-emoji-${{ matrix.debian_version }}
+    outputs:
+      emoji_version: ${{ steps.emoji_version.outputs.version }}
+
+    steps:
+      - name: Cache apt packages
+        uses: actions/cache@v5
+        with:
+          path: /var/cache/apt/archives
+          key: apt-emoji-dev-${{ matrix.debian_version }}
+          restore-keys: apt-emoji-dev-${{ matrix.debian_version }}-
+
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential git ca-certificates autoconf automake libtool pkg-config \
+            libglib2.0-dev \
+            libcairo2-dev \
+            libpango1.0-dev \
+            xdotool
+
+      - name: Download rofi .deb artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: rofi-wayland-${{ matrix.debian_version }}
+          path: rofi-packages
+
+      - name: Download rofi headers artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: rofi-headers-${{ matrix.debian_version }}
+          path: /usr/include/rofi
+
+      - name: Install rofi .deb
+        run: apt-get install -y ./rofi-packages/rofi-wayland_*.deb
+
+      - name: Clone rofi-emoji source (latest main)
+        run: git clone --recursive https://github.com/Mange/rofi-emoji.git
+
+      - name: Get rofi-emoji version
+        id: emoji_version
+        run: |
+          cd rofi-emoji
+          RAW=$(git describe --tags --always | sed 's/^v//')
+          VERSION=$(echo "$RAW" | sed 's/-/+/g')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building dev rofi-emoji version: $VERSION"
+
+      - name: Build rofi-emoji
+        run: |
+          cd rofi-emoji
+          autoreconf -i
+          mkdir -p build && cd build
+          ../configure --prefix=/usr
+          make -j$(nproc)
+          make install DESTDIR=$PWD/staging
+
+      - name: Package rofi-emoji as .deb
+        run: |
+          VERSION=${{ steps.emoji_version.outputs.version }}
+          DEB_VERSION="${VERSION}-1~${{ matrix.debian_version }}"
+          STAGING=rofi-emoji/build/staging
+
+          mkdir -p deb-root/DEBIAN
+          mkdir -p deb-root/usr/lib/rofi
+          mkdir -p deb-root/usr/share/rofi-emoji
+
+          find ${STAGING}/usr/lib -name "*.so" -exec cp {} deb-root/usr/lib/rofi/ \;
+          find ${STAGING}/usr/share -name "*.txt" -exec cp {} deb-root/usr/share/rofi-emoji/ \;
+          find ${STAGING}/usr/share -name "clipboard-adapter.sh" \
+            -exec install -Dm755 {} deb-root/usr/share/rofi-emoji/clipboard-adapter.sh \; || true
+
+          cat > deb-root/DEBIAN/control << EOF
+          Package: rofi-emoji
+          Version: ${DEB_VERSION}
+          Architecture: amd64
+          Maintainer: Mohammed Besar <mbesar@proton.me>
+          Depends: rofi-wayland, xdotool | wl-clipboard
+          Description: Emoji selector plugin for Rofi (dev build)
+           An emoji selector plugin for Rofi that copies the selected emoji
+           to the clipboard and optionally inserts it directly.
+           Use with: rofi -show emoji
+           .
+           This is a development build from the latest upstream commit.
+          EOF
+
+          dpkg-deb --build deb-root rofi-emoji_${DEB_VERSION}_amd64.deb
+          mkdir -p packages
+          mv rofi-emoji_*.deb packages/
+          echo "Built:"
+          ls -la packages/
+
+      - name: Upload rofi-emoji packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: rofi-emoji-${{ matrix.debian_version }}
+          path: packages/*.deb
+          retention-days: 7
+
+# ─────────────────────────────────────────────
+# JOB 3 — Create dev release (pre-release badge)
+# ─────────────────────────────────────────────
+  release:
+    runs-on: ubuntu-latest
+    needs: [build-rofi, build-rofi-emoji]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v5
+        with:
+          merge-multiple: true
+          path: release-packages
+          pattern: 'rofi-*[!headers]*'
+
+      - name: List release packages
+        run: |
+          echo "Packages to release:"
+          find release-packages -name "*.deb" -type f | sort
+
+      - name: Create Dev Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-${{ needs.build-rofi.outputs.rofi_version }}
+          name: Rofi ${{ needs.build-rofi.outputs.rofi_version }} — Dev Build
+          prerelease: true
+          make_latest: false
+          body: |
+            ## Rofi with Official Wayland Support + Emoji Plugin — Dev Build ⚠️
+
+            > **Warning:** This is a development build from the latest upstream commits. It may be unstable. For production use, install the [latest stable release](https://github.com/${{ github.repository }}/releases/latest) instead.
+
+            Built from latest main branch of [davatorium/rofi](https://github.com/davatorium/rofi) and [Mange/rofi-emoji](https://github.com/Mange/rofi-emoji).
+            Compatible with **Debian 13 (Trixie)** and **Debian Sid**.
+
+            ### Versions
+            | Package | Version |
+            |---------|---------|
+            | rofi | `${{ needs.build-rofi.outputs.rofi_version }}` |
+            | rofi-emoji | `${{ needs.build-rofi-emoji.outputs.emoji_version }}` |
+
+            ### Features
+            - ✅ Official Wayland support (layer shell protocol)
+            - ✅ X11/XCB support (dual backend)
+            - ✅ Automatic backend detection
+            - ✅ All standard rofi features
+            - ✅ Emoji picker via `rofi -show emoji`
+
+            ### Installation
+
+            **Debian 13 (Trixie):**
+            ```bash
+            sudo apt install ./rofi-wayland_*trixie*_amd64.deb
+            sudo apt install ./rofi-emoji_*trixie*_amd64.deb
+            ```
+
+            **Debian Sid:**
+            ```bash
+            sudo apt install ./rofi-wayland_*sid*_amd64.deb
+            sudo apt install ./rofi-emoji_*sid*_amd64.deb
+            ```
+
+            ### Emoji Usage
+            ```bash
+            rofi -show emoji
+            ```
+
+            ### Notes
+            - `rofi-wayland` conflicts with and replaces the official `rofi` package
+            - `rofi-emoji` requires `xdotool` (X11) or `wl-clipboard` (Wayland) for clipboard support
+            - Dev builds are retained for 7 days as artifacts
+
+            Built from commit: ${{ github.sha }} by @${{ github.actor }}
+          files: release-packages/*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
