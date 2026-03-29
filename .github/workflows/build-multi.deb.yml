@@ -91,7 +91,9 @@ jobs:
         run: |
           VERSION=${{ steps.version.outputs.version }}
           cd rofi-wayland-${VERSION}
-          rm -f debian/compat debian/install
+          # Set correct debhelper compat level
+          echo 13 > debian/compat
+          rm -f debian/install
           chmod +x debian/rules
           # Remove debhelper-compat from Build-Depends (not a real installable package)
           sed -i 's/debhelper-compat (= 13)/debhelper (>= 13)/' debian/control
