@@ -51,7 +51,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            devscripts build-essential git curl wget \
+            devscripts build-essential git ca-certificates curl wget \
             debhelper \
             meson ninja-build pkg-config \
             flex bison check \
@@ -164,7 +164,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            build-essential git autoconf automake libtool pkg-config \
+            build-essential git ca-certificates autoconf automake libtool pkg-config \
             libglib2.0-dev \
             libcairo2-dev \
             libpango1.0-dev \
