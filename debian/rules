@@ -6,4 +6,5 @@
 override_dh_auto_configure:
 	dh_auto_configure -- \
 		--prefix=/usr \
-		--buildtype=release
+		--buildtype=release \
+		-Dplugin-directory=/usr/lib/rofi
