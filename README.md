@@ -111,6 +111,27 @@ rofi -show drun -x11 # Force X11 backend
 
 ### Emoji mode
 
+After installing `rofi-emoji`, you need to enable the emoji mode in your rofi config. Edit `~/.config/rofi/config.rasi` and add `emoji` to the modes list:
+
+```
+configuration {
+    modes: "window,drun,run,ssh,emoji";
+}
+```
+
+If you don't have a config file yet, create one:
+
+```bash
+mkdir -p ~/.config/rofi
+cat > ~/.config/rofi/config.rasi << 'EOF'
+configuration {
+    modes: "window,drun,run,ssh,emoji";
+}
+EOF
+```
+
+Then run:
+
 ```bash
 rofi -show emoji
 ```
@@ -119,7 +140,10 @@ Type to search by name (e.g. "face", "heart", "cat"), then:
 - **Enter** — insert emoji at cursor
 - **Alt+Enter** — open copy/insert options menu
 
-> **Color emoji:** Install `fonts-noto-color-emoji` for full color rendering in the picker. Without it, emoji will appear as monochrome outlines.
+> **Color emoji:** Install `fonts-noto-color-emoji` for full color rendering in the picker:
+> ```bash
+> sudo apt install fonts-noto-color-emoji
+> ```
 
 #### Optional dependencies for emoji insertion
 
